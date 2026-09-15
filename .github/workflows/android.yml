@@ -1,6 +1,8 @@
 name: Doulabi Android Build
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - main
@@ -11,17 +13,16 @@ on:
       - main
       - master
 
-  workflow_dispatch:
-
 permissions:
   contents: read
 
 jobs:
   build:
-    name: Build & Test Doulabi
+    name: Doulabi Build & Test
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -35,33 +36,34 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses > /dev/null || true
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK
         run: |
           sdkmanager "platform-tools"
           sdkmanager "platforms;android-35"
           sdkmanager "build-tools;35.0.0"
 
-      - name: Verify Android SDK
+      - name: Verify SDK
         run: |
-          adb version
+          echo "Android SDK:"
           sdkmanager --list_installed
 
-      - name: Make Gradle executable
+      - name: Make Gradle Executable
         run: chmod +x ./gradlew
 
-      - name: Verify Gradle
+      - name: Gradle Version
         run: ./gradlew --version
 
-      - name: Clean project
+      - name: Clean
         run: ./gradlew clean --stacktrace
 
-      - name: Run Unit Tests
+      - name: Unit Tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Build Debug APK
+      - name: Build APK
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
@@ -78,7 +80,7 @@ jobs:
         with:
           name: Doulabi-Test-Reports
           path: |
-            app/build/reports/tests/
-            app/build/test-results/
+            app/build/reports/tests/**
+            app/build/test-results/**
           if-no-files-found: ignore
           retention-days: 7
