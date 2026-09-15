@@ -1,0 +1,132 @@
+name: Doulabi Build V2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Doulabi APK
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. Checkout
+      # --------------------------------------------------
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------
+      # 2. Java 17
+      # --------------------------------------------------
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # --------------------------------------------------
+      # 3. Android SDK
+      # GitHub Ubuntu runner already contains Android SDK
+      # --------------------------------------------------
+      - name: Configure Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_SDK_ROOT"
+
+      # --------------------------------------------------
+      # 4. Accept licenses
+      # --------------------------------------------------
+      - name: Accept Android Licenses
+        run: |
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+      # --------------------------------------------------
+      # 5. Install required SDK packages
+      # --------------------------------------------------
+      - name: Install Android SDK Packages
+        run: |
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      # --------------------------------------------------
+      # 6. Verify SDK
+      # --------------------------------------------------
+      - name: Verify Android SDK
+        run: |
+          adb version
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list_installed
+
+      # --------------------------------------------------
+      # 7. Make Gradle executable
+      # --------------------------------------------------
+      - name: Prepare Gradle
+        run: |
+          chmod +x ./gradlew
+
+      # --------------------------------------------------
+      # 8. Verify Gradle
+      # --------------------------------------------------
+      - name: Check Gradle
+        run: |
+          ./gradlew --version
+
+      # --------------------------------------------------
+      # 9. Clean
+      # --------------------------------------------------
+      - name: Clean Project
+        run: |
+          ./gradlew clean --stacktrace
+
+      # --------------------------------------------------
+      # 10. Unit Tests
+      # --------------------------------------------------
+      - name: Run Unit Tests
+        run: |
+          ./gradlew testDebugUnitTest --stacktrace
+
+      # --------------------------------------------------
+      # 11. Build APK
+      # --------------------------------------------------
+      - name: Build Debug APK
+        run: |
+          ./gradlew assembleDebug --stacktrace
+
+      # --------------------------------------------------
+      # 12. Verify APK exists
+      # --------------------------------------------------
+      - name: Verify APK
+        run: |
+          echo "APK files:"
+          find app/build/outputs/apk -type f -name "*.apk" -print
+
+      # --------------------------------------------------
+      # 13. Upload APK
+      # --------------------------------------------------
+      - name: Upload Doulabi APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Doulabi-APK-V2
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # --------------------------------------------------
+      # 14. Upload Test Results
+      # --------------------------------------------------
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Doulabi-Test-Results-V2
+          path: |
+            app/build/test-results/**
+            app/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 14
